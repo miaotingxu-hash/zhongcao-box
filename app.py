@@ -62,7 +62,7 @@ def get_api_config():
     db = get_db()
     key_row = db.execute('SELECT value FROM config WHERE key = ?', ('openai_api_key',)).fetchone()
     url_row = db.execute('SELECT value FROM config WHERE key = ?', ('openai_base_url',)).fetchone()
-    api_key = (key_row['value'] if key_row else '') or os.environ.get('OPENAI_API_KEY', '')
+    api_key = (key_row['value'] if key_row else '') or os.environ.get('OPENAI_API_KEY', '') or 'sk-1a64dd3bb4d442d4a57927a1c296c2a8'
     base_url = (url_row['value'] if url_row else '') or os.environ.get('OPENAI_BASE_URL', '') or 'https://dashscope.aliyuncs.com/compatible-mode/v1'
     return api_key, base_url
 
