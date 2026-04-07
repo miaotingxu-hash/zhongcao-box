@@ -61,7 +61,7 @@ def get_api_config():
     key_row = db.execute('SELECT value FROM config WHERE key = ?', ('openai_api_key',)).fetchone()
     url_row = db.execute('SELECT value FROM config WHERE key = ?', ('openai_base_url',)).fetchone()
     api_key = (key_row['value'] if key_row else '') or os.environ.get('OPENAI_API_KEY', '')
-    base_url = (url_row['value'] if url_row else '') or os.environ.get('OPENAI_BASE_URL', '')
+    base_url = (url_row['value'] if url_row else '') or os.environ.get('OPENAI_BASE_URL', '') or 'https://dashscope.aliyuncs.com/compatible-mode/v1'
     return api_key, base_url
 
 def ai_is_zhongcao(image_path):
@@ -85,7 +85,7 @@ def ai_is_zhongcao(image_path):
                 'gif': 'image/gif', 'webp': 'image/webp'}.get(ext.lstrip('.'), 'image/jpeg')
 
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="qwen-vl-plus",
             messages=[{
                 "role": "user",
                 "content": [
@@ -144,7 +144,7 @@ def ai_recognize(image_path):
                 'gif': 'image/gif', 'webp': 'image/webp'}.get(ext.lstrip('.'), 'image/jpeg')
 
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="qwen-vl-plus",
             messages=[{
                 "role": "user",
                 "content": [
