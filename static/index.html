@@ -787,23 +787,34 @@ async function uploadFiles(files) {
   }
 
   try {
-    msg.textContent = `识别中... ${files.length} 张图片`;
+    msg.textContent = `上传中... ${files.length} 张图片`;
     const res = await fetch('/api/upload', { method: 'POST', body: formData });
     const data = await res.json();
 
-    const aiCount = data.results.filter(r => r.ai).length;
     const dupCount = data.results.filter(r => r.status === 'duplicate').length;
-    let resultMsg = `完成！${data.results.length - dupCount} 张已保存`;
-    if (aiCount > 0) resultMsg += `，${aiCount} 张已 AI 识别`;
-    if (dupCount > 0) resultMsg += `，${dupCount} 张重复跳过`;
+    const saved = data.results.length - dupCount;
+    let resultMsg = `已保存 ${saved} 张，AI 识别中...`;
+    if (dupCount > 0) resultMsg += `（${dupCount} 张重复跳过）`;
     msg.textContent = resultMsg;
 
     setTimeout(() => toast.classList.remove('show'), 2000);
 
-    // 刷新
+    // 立即刷新显示图片
     await loadCategories();
     await loadItems();
     await loadStats();
+
+    // 每 5 秒轮询一次，等 AI 识别完成
+    if (saved > 0) {
+      let polls = 0;
+      const pollTimer = setInterval(async () => {
+        polls++;
+        await loadItems();
+        await loadCategories();
+        await loadStats();
+        if (polls >= 12) clearInterval(pollTimer); // 最多轮询 1 分钟
+      }, 5000);
+    }
   } catch (e) {
     msg.textContent = '上传失败，请重试';
     setTimeout(() => toast.classList.remove('show'), 2000);

@@ -220,23 +220,9 @@ def quick_upload():
         db.commit()
         item_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
 
-        # AI 识别
-        ai_result = ai_recognize(filepath)
-        if ai_result:
-            tags = ','.join(ai_result.get('tags', []))
-            keywords = ','.join(ai_result.get('search_keywords', []))
-            brand = ai_result.get('brand') or ''
-            if brand and brand != 'null':
-                keywords = f"{brand},{keywords}" if keywords else brand
-            desc = ai_result.get('description', '')
-            category = ai_result.get('category', '其他')
-            db.execute('''UPDATE items SET tags=?, ai_description=?, keywords=?,
-                         category=?, ai_status='done' WHERE id=?''',
-                       (tags, desc, keywords, category, item_id))
-            db.commit()
-            return f'已种草！{category} - {desc}'
-        else:
-            return '已保存（AI 识别稍后补充）'
+        # AI 识别放到后台
+        threading.Thread(target=bg_ai_recognize, args=(item_id, filepath), daemon=True).start()
+        return '已保存！AI 正在识别中~'
 
 @app.route('/')
 def index():
@@ -245,6 +231,27 @@ def index():
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+def bg_ai_recognize(item_id, filepath):
+    """后台线程执行 AI 识别"""
+    try:
+        ai_result = ai_recognize(filepath)
+        if ai_result:
+            db = sqlite3.connect(app.config['DATABASE'])
+            db.row_factory = sqlite3.Row
+            tags = ','.join(ai_result.get('tags', []))
+            keywords = ','.join(ai_result.get('search_keywords', []))
+            brand = ai_result.get('brand') or ''
+            if brand and brand != 'null':
+                keywords = f"{brand},{keywords}" if keywords else brand
+            db.execute('''UPDATE items SET tags=?, ai_description=?, keywords=?,
+                         category=?, ai_status='done' WHERE id=?''',
+                       (tags, ai_result.get('description', ''), keywords,
+                        ai_result.get('category', '其他'), item_id))
+            db.commit()
+            db.close()
+    except Exception as e:
+        print(f"后台 AI 识别失败: {e}")
 
 @app.route('/api/upload', methods=['POST'])
 def upload():
@@ -263,7 +270,6 @@ def upload():
         # 计算哈希去重
         content = f.read()
         file_hash = hashlib.md5(content).hexdigest()
-        f.seek(0)
 
         existing = db.execute('SELECT id FROM items WHERE image_hash = ?', (file_hash,)).fetchone()
         if existing:
@@ -285,23 +291,10 @@ def upload():
         )
         db.commit()
         item_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
+        results.append({'id': item_id, 'status': 'ok', 'ai': False})
 
-        # 尝试 AI 识别
-        ai_result = ai_recognize(filepath)
-        if ai_result:
-            tags = ','.join(ai_result.get('tags', []))
-            keywords = ','.join(ai_result.get('search_keywords', []))
-            brand = ai_result.get('brand') or ''
-            if brand and brand != 'null':
-                keywords = f"{brand},{keywords}" if keywords else brand
-            db.execute('''UPDATE items SET tags=?, ai_description=?, keywords=?,
-                         category=?, ai_status='done' WHERE id=?''',
-                       (tags, ai_result.get('description', ''), keywords,
-                        ai_result.get('category', '其他'), item_id))
-            db.commit()
-            results.append({'id': item_id, 'status': 'ok', 'ai': True})
-        else:
-            results.append({'id': item_id, 'status': 'ok', 'ai': False})
+        # AI 识别放到后台线程
+        threading.Thread(target=bg_ai_recognize, args=(item_id, filepath), daemon=True).start()
 
     return jsonify({'results': results})
 
