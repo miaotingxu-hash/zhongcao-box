@@ -410,11 +410,8 @@ def config():
         db.commit()
         return jsonify({'ok': True})
     else:
-        key_row = db.execute('SELECT value FROM config WHERE key = ?', ('openai_api_key',)).fetchone()
-        url_row = db.execute('SELECT value FROM config WHERE key = ?', ('openai_base_url',)).fetchone()
-        has_key = bool(key_row and key_row['value'])
-        base_url = (url_row['value'] if url_row else '') or ''
-        return jsonify({'has_api_key': has_key, 'base_url': base_url})
+        api_key, base_url = get_api_config()
+        return jsonify({'has_api_key': bool(api_key), 'base_url': base_url})
 
 @app.route('/api/retry-ai/<int:item_id>', methods=['POST'])
 def retry_ai(item_id):
