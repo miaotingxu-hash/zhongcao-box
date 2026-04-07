@@ -7,6 +7,8 @@ import json
 import hashlib
 import sqlite3
 import base64
+import threading
+import urllib.request
 from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory, g
 
@@ -85,7 +87,7 @@ def ai_is_zhongcao(image_path):
                 'gif': 'image/gif', 'webp': 'image/webp'}.get(ext.lstrip('.'), 'image/jpeg')
 
         response = client.chat.completions.create(
-            model="qwen-vl-plus",
+            model="qwen-vl-plus-latest",
             messages=[{
                 "role": "user",
                 "content": [
@@ -144,7 +146,7 @@ def ai_recognize(image_path):
                 'gif': 'image/gif', 'webp': 'image/webp'}.get(ext.lstrip('.'), 'image/jpeg')
 
         response = client.chat.completions.create(
-            model="qwen-vl-plus",
+            model="qwen-vl-plus-latest",
             messages=[{
                 "role": "user",
                 "content": [
@@ -503,6 +505,20 @@ def scan_folder():
     return jsonify({'imported': imported, 'skipped': skipped})
 
 init_db()
+
+# 防止 Render 免费套餐休眠：每 10 分钟 ping 自己
+def keep_alive():
+    import time
+    url = os.environ.get('RENDER_EXTERNAL_URL', '')
+    while url:
+        try:
+            urllib.request.urlopen(url + '/api/stats', timeout=10)
+        except Exception:
+            pass
+        time.sleep(600)
+
+if os.environ.get('RENDER'):
+    threading.Thread(target=keep_alive, daemon=True).start()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8081))
