@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="种草盒子">
+<meta name="theme-color" content="#FBF8F5">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<link rel="manifest" href="/static/manifest.json">
+<title>种草盒子</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --bg: #FBF8F5;
+  --card: #FFFFFF;
+  --text: #2D2A26;
+  --text2: #8A857E;
+  --accent: #E8A87C;
+  --accent2: #D4845A;
+  --tag-bg: #F5EDDF;
+  --want: #E8A87C;
+  --bought: #85C88A;
+  --done: #A0C4E8;
+  --shadow: 0 2px 12px rgba(0,0,0,0.06);
+  --radius: 14px;
+}
+
+body {
+  font-family: -apple-system, "SF Pro Display", "PingFang SC", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: 80px;
+}
+
+/* 顶部 */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg);
+  padding: 12px 16px 8px;
+}
+
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.logo {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.logo span { color: var(--accent2); }
+
+.settings-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 搜索框 */
+.search-box {
+  position: relative;
+  margin-bottom: 10px;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 10px 14px 10px 38px;
+  border: none;
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-size: 15px;
+  outline: none;
+}
+
+.search-box input::placeholder { color: var(--text2); }
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text2);
+  font-size: 16px;
+}
+
+/* 品类标签 */
+.category-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.category-tabs::-webkit-scrollbar { display: none; }
+
+.cat-tab {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: none;
+  background: var(--card);
+  color: var(--text2);
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  transition: all 0.2s;
+}
+
+.cat-tab.active {
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+}
+
+/* 状态筛选 */
+.status-bar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 16px 4px;
+}
+
+.status-chip {
+  padding: 4px 12px;
+  border-radius: 16px;
+  border: 1.5px solid #E8E4DE;
+  background: transparent;
+  color: var(--text2);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.status-chip.active { border-color: var(--accent); color: var(--accent2); background: rgba(232,168,124,0.08); }
+.status-chip .count { margin-left: 3px; opacity: 0.6; }
+
+/* 瀑布流 */
+.waterfall {
+  columns: 2;
+  column-gap: 10px;
+  padding: 8px 12px;
+}
+
+.card {
+  break-inside: avoid;
+  margin-bottom: 10px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.card:active { transform: scale(0.97); }
+
+.card img {
+  width: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.card-info {
+  padding: 8px 10px 10px;
+}
+
+.card-desc {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.card-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--tag-bg);
+  color: var(--text2);
+}
+
+.card-status {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  color: white;
+  margin-top: 6px;
+}
+
+.card-status.want { background: var(--want); }
+.card-status.bought { background: var(--bought); }
+.card-status.done { background: var(--done); }
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 80px 40px;
+  color: var(--text2);
+}
+
+.empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+.empty-state p { font-size: 15px; line-height: 1.6; }
+
+/* 上传按钮 */
+.upload-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: white;
+  font-size: 28px;
+  box-shadow: 0 4px 16px rgba(212,132,90,0.4);
+  cursor: pointer;
+  z-index: 90;
+  transition: transform 0.2s;
+}
+
+.upload-btn:active { transform: scale(0.9); }
+
+#file-input { display: none; }
+
+/* 上传进度 */
+.upload-toast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0,0,0,0.75);
+  color: white;
+  padding: 20px 32px;
+  border-radius: 16px;
+  font-size: 15px;
+  z-index: 200;
+  display: none;
+  text-align: center;
+}
+
+.upload-toast.show { display: block; }
+
+/* 详情弹窗 */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 150;
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.modal-overlay.show { display: flex; }
+
+.modal {
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  background: var(--card);
+  border-radius: 20px 20px 0 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.modal-img {
+  width: 100%;
+  max-height: 50vh;
+  object-fit: contain;
+  background: #F5F3F0;
+}
+
+.modal-body { padding: 16px; }
+
+.modal-body h3 { font-size: 16px; margin-bottom: 12px; }
+
+.modal-ai-desc {
+  font-size: 14px;
+  color: var(--text2);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.modal-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.modal-tag {
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  background: var(--tag-bg);
+  color: var(--text2);
+}
+
+.modal-section { margin-bottom: 16px; }
+.modal-label { font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+
+/* 状态切换 */
+.status-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.status-option {
+  flex: 1;
+  padding: 10px;
+  border-radius: 12px;
+  border: 2px solid #E8E4DE;
+  background: transparent;
+  text-align: center;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.status-option.active-want { border-color: var(--want); background: rgba(232,168,124,0.1); color: var(--accent2); }
+.status-option.active-bought { border-color: var(--bought); background: rgba(133,200,138,0.1); color: #4a9e50; }
+.status-option.active-done { border-color: var(--done); background: rgba(160,196,232,0.1); color: #5a8ab8; }
+
+/* 备注输入 */
+.note-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid #E8E4DE;
+  border-radius: 12px;
+  font-size: 14px;
+  resize: none;
+  outline: none;
+  font-family: inherit;
+  min-height: 60px;
+}
+
+.note-input:focus { border-color: var(--accent); }
+
+/* 删除按钮 */
+.delete-btn {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  background: #FFF0F0;
+  color: #E85858;
+  font-size: 14px;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+/* 设置弹窗 */
+.settings-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-modal.show { display: flex; }
+
+.settings-content {
+  width: 90%;
+  max-width: 400px;
+  background: var(--card);
+  border-radius: 20px;
+  padding: 24px;
+}
+
+.settings-content h3 { margin-bottom: 16px; }
+
+.settings-content label {
+  display: block;
+  font-size: 13px;
+  color: var(--text2);
+  margin-bottom: 6px;
+}
+
+.settings-content input[type="password"] {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid #E8E4DE;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  margin-bottom: 12px;
+}
+
+.settings-content input:focus { border-color: var(--accent); }
+
+.settings-save {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  background: var(--accent);
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-hint {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.close-modal {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--text2);
+  cursor: pointer;
+}
+
+.ai-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #E8A87C, #D4845A);
+  color: white;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.retry-btn {
+  display: inline-block;
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent2);
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+/* 统计栏 */
+.stats-bar {
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 16px;
+  margin: 0 12px;
+  background: var(--card);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.stat-item { text-align: center; }
+.stat-num { font-size: 20px; font-weight: 700; color: var(--accent2); }
+.stat-label { font-size: 11px; color: var(--text2); margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<!-- 顶部 -->
+<div class="header">
+  <div class="header-top">
+    <div class="logo"><span>种草</span>盒子</div>
+    <button class="settings-btn" onclick="showSettings()">...</button>
+  </div>
+  <div class="search-box">
+    <span class="search-icon">Q</span>
+    <input type="text" id="searchInput" placeholder="搜索种草... 如「红色口红」「美甲 法式」"
+           oninput="debounceSearch()">
+  </div>
+  <div class="category-tabs" id="categoryTabs"></div>
+</div>
+
+<!-- 统计 -->
+<div class="stats-bar" id="statsBar" style="display:none">
+  <div class="stat-item"><div class="stat-num" id="statTotal">0</div><div class="stat-label">全部</div></div>
+  <div class="stat-item"><div class="stat-num" id="statWant" style="color:var(--want)">0</div><div class="stat-label">想要</div></div>
+  <div class="stat-item"><div class="stat-num" id="statBought" style="color:var(--bought)">0</div><div class="stat-label">已买</div></div>
+  <div class="stat-item"><div class="stat-num" id="statDone" style="color:var(--done)">0</div><div class="stat-label">已做</div></div>
+</div>
+
+<!-- 状态筛选 -->
+<div class="status-bar" id="statusBar"></div>
+
+<!-- 瀑布流 -->
+<div class="waterfall" id="waterfall"></div>
+
+<!-- 空状态 -->
+<div class="empty-state" id="emptyState" style="display:none">
+  <div class="icon">+</div>
+  <p>还没有种草图片<br>点击右下角按钮开始收藏</p>
+</div>
+
+<!-- 上传按钮 -->
+<button class="upload-btn" onclick="document.getElementById('file-input').click()">+</button>
+<input type="file" id="file-input" accept="image/*" multiple onchange="uploadFiles(this.files)">
+
+<!-- 上传提示 -->
+<div class="upload-toast" id="uploadToast">
+  <div id="uploadMsg">上传中...</div>
+</div>
+
+<!-- 详情弹窗 -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <img class="modal-img" id="modalImg" src="">
+    <div class="modal-body">
+      <div class="modal-ai-desc" id="modalDesc"></div>
+
+      <div class="modal-tags" id="modalTags"></div>
+
+      <div class="modal-section">
+        <div class="modal-label">状态</div>
+        <div class="status-toggle" id="statusToggle">
+          <button class="status-option" data-status="want" onclick="setStatus('want')">想要</button>
+          <button class="status-option" data-status="bought" onclick="setStatus('bought')">已买</button>
+          <button class="status-option" data-status="done" onclick="setStatus('done')">已做</button>
+        </div>
+      </div>
+
+      <div class="modal-section">
+        <div class="modal-label">备注</div>
+        <textarea class="note-input" id="noteInput" placeholder="添加备注..."
+                  onblur="saveNote()"></textarea>
+      </div>
+
+      <div class="modal-section" id="aiRetrySection" style="display:none">
+        <button class="retry-btn" onclick="retryAI()">重新 AI 识别</button>
+      </div>
+
+      <button class="delete-btn" onclick="deleteItem()">删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- 设置弹窗 -->
+<div class="settings-modal" id="settingsModal" onclick="closeSettings(event)">
+  <div class="settings-content" onclick="event.stopPropagation()">
+    <h3>设置</h3>
+    <label>API Base URL（可选）</label>
+    <input type="text" id="baseUrlInput" placeholder="留空则用 OpenAI 官方地址" style="border-radius:10px;width:100%;padding:10px 12px;border:1.5px solid #E8E4DE;font-size:14px;outline:none;margin-bottom:12px;">
+    <label>API Key</label>
+    <input type="password" id="apiKeyInput" placeholder="sk-...">
+    <button class="settings-save" onclick="saveApiConfig()">保存</button>
+    <div class="settings-hint" id="apiKeyHint">
+      设置后上传图片会自动 AI 识别内容并打标签。<br>
+      没有 Key 也能用，手动管理标签和分类。
+    </div>
+  </div>
+</div>
+
+<script>
+let currentCategory = '全部';
+let currentStatus = '';
+let currentItemId = null;
+let allItems = [];
+let searchTimer = null;
+
+// ========== 初始化 ==========
+async function init() {
+  await loadCategories();
+  await loadItems();
+  await loadStats();
+  checkApiKey();
+}
+
+// ========== 数据加载 ==========
+async function loadItems() {
+  const params = new URLSearchParams();
+  if (currentCategory && currentCategory !== '全部') params.set('category', currentCategory);
+  if (currentStatus && currentStatus !== '全部') params.set('status', currentStatus);
+  const q = document.getElementById('searchInput').value.trim();
+  if (q) params.set('q', q);
+
+  const res = await fetch('/api/items?' + params);
+  const data = await res.json();
+  allItems = data.items;
+  renderWaterfall();
+}
+
+async function loadCategories() {
+  const res = await fetch('/api/categories');
+  const data = await res.json();
+  const tabs = document.getElementById('categoryTabs');
+  tabs.innerHTML = '';
+  data.categories.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-tab' + (cat.name === currentCategory ? ' active' : '');
+    btn.textContent = `${cat.name} ${cat.count}`;
+    btn.onclick = () => {
+      currentCategory = cat.name;
+      document.querySelectorAll('.cat-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      loadItems();
+    };
+    tabs.appendChild(btn);
+  });
+}
+
+async function loadStats() {
+  const res = await fetch('/api/stats');
+  const data = await res.json();
+  if (data.total > 0) {
+    document.getElementById('statsBar').style.display = 'flex';
+    document.getElementById('statTotal').textContent = data.total;
+    document.getElementById('statWant').textContent = data.want;
+    document.getElementById('statBought').textContent = data.bought;
+    document.getElementById('statDone').textContent = data.done;
+  }
+
+  // 状态筛选
+  const bar = document.getElementById('statusBar');
+  const statuses = [
+    { key: '', label: '全部', count: data.total },
+    { key: 'want', label: '想要', count: data.want },
+    { key: 'bought', label: '已买', count: data.bought },
+    { key: 'done', label: '已做', count: data.done },
+  ];
+  bar.innerHTML = '';
+  statuses.forEach(s => {
+    const chip = document.createElement('button');
+    chip.className = 'status-chip' + (currentStatus === s.key ? ' active' : '');
+    chip.innerHTML = `${s.label}<span class="count">${s.count}</span>`;
+    chip.onclick = () => {
+      currentStatus = s.key;
+      document.querySelectorAll('.status-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      loadItems();
+    };
+    bar.appendChild(chip);
+  });
+}
+
+// ========== 瀑布流渲染 ==========
+function renderWaterfall() {
+  const container = document.getElementById('waterfall');
+  const empty = document.getElementById('emptyState');
+
+  if (allItems.length === 0) {
+    container.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+
+  empty.style.display = 'none';
+  container.innerHTML = '';
+
+  allItems.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.onclick = () => openDetail(item);
+
+    const img = document.createElement('img');
+    img.src = '/uploads/' + item.image_path;
+    img.loading = 'lazy';
+    card.appendChild(img);
+
+    const info = document.createElement('div');
+    info.className = 'card-info';
+
+    // 描述
+    if (item.ai_description) {
+      const desc = document.createElement('div');
+      desc.className = 'card-desc';
+      desc.textContent = item.ai_description;
+      info.appendChild(desc);
+    }
+
+    // 标签
+    if (item.tags) {
+      const tags = document.createElement('div');
+      tags.className = 'card-tags';
+      item.tags.split(',').slice(0, 3).forEach(t => {
+        if (!t.trim()) return;
+        const tag = document.createElement('span');
+        tag.className = 'card-tag';
+        tag.textContent = t.trim();
+        tags.appendChild(tag);
+      });
+      if (item.ai_status === 'done') {
+        const ai = document.createElement('span');
+        ai.className = 'ai-badge';
+        ai.textContent = 'AI';
+        tags.appendChild(ai);
+      }
+      info.appendChild(tags);
+    }
+
+    // 状态
+    const statusLabels = { want: '想要', bought: '已买', done: '已做' };
+    const statusEl = document.createElement('span');
+    statusEl.className = 'card-status ' + item.status;
+    statusEl.textContent = statusLabels[item.status] || '想要';
+    info.appendChild(statusEl);
+
+    card.appendChild(info);
+    container.appendChild(card);
+  });
+}
+
+// ========== 搜索 ==========
+function debounceSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => loadItems(), 300);
+}
+
+// ========== 上传 ==========
+// 压缩图片，减小上传体积
+function compressImage(file, maxWidth = 1200, quality = 0.7) {
+  return new Promise((resolve) => {
+    // 小于 500KB 不压缩
+    if (file.size < 500 * 1024) { resolve(file); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > maxWidth) { h = h * maxWidth / w; w = maxWidth; }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob((blob) => {
+          resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+        }, 'image/jpeg', quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadFiles(files) {
+  if (!files.length) return;
+
+  const toast = document.getElementById('uploadToast');
+  const msg = document.getElementById('uploadMsg');
+  toast.classList.add('show');
+  msg.textContent = `压缩中... 0/${files.length}`;
+
+  // 压缩所有图片
+  const compressed = [];
+  for (let i = 0; i < files.length; i++) {
+    msg.textContent = `压缩中... ${i+1}/${files.length}`;
+    compressed.push(await compressImage(files[i]));
+  }
+
+  const formData = new FormData();
+  for (let i = 0; i < compressed.length; i++) {
+    formData.append('images', compressed[i]);
+  }
+
+  try {
+    msg.textContent = `识别中... ${files.length} 张图片`;
+    const res = await fetch('/api/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    const aiCount = data.results.filter(r => r.ai).length;
+    const dupCount = data.results.filter(r => r.status === 'duplicate').length;
+    let resultMsg = `完成！${data.results.length - dupCount} 张已保存`;
+    if (aiCount > 0) resultMsg += `，${aiCount} 张已 AI 识别`;
+    if (dupCount > 0) resultMsg += `，${dupCount} 张重复跳过`;
+    msg.textContent = resultMsg;
+
+    setTimeout(() => toast.classList.remove('show'), 2000);
+
+    // 刷新
+    await loadCategories();
+    await loadItems();
+    await loadStats();
+  } catch (e) {
+    msg.textContent = '上传失败，请重试';
+    setTimeout(() => toast.classList.remove('show'), 2000);
+  }
+
+  // 清空 input
+  document.getElementById('file-input').value = '';
+}
+
+// ========== 详情 ==========
+function openDetail(item) {
+  currentItemId = item.id;
+  document.getElementById('modalImg').src = '/uploads/' + item.image_path;
+  document.getElementById('modalDesc').textContent = item.ai_description || '暂无 AI 描述';
+  document.getElementById('noteInput').value = item.note || '';
+
+  // 标签
+  const tagsEl = document.getElementById('modalTags');
+  tagsEl.innerHTML = '';
+  if (item.tags) {
+    item.tags.split(',').forEach(t => {
+      if (!t.trim()) return;
+      const tag = document.createElement('span');
+      tag.className = 'modal-tag';
+      tag.textContent = t.trim();
+      tagsEl.appendChild(tag);
+    });
+  }
+  if (item.category && item.category !== '其他') {
+    const catTag = document.createElement('span');
+    catTag.className = 'modal-tag';
+    catTag.style.background = 'rgba(232,168,124,0.2)';
+    catTag.style.color = 'var(--accent2)';
+    catTag.textContent = item.category;
+    tagsEl.prepend(catTag);
+  }
+
+  // 状态
+  document.querySelectorAll('.status-option').forEach(btn => {
+    btn.className = 'status-option';
+    if (btn.dataset.status === item.status) {
+      btn.classList.add('active-' + item.status);
+    }
+  });
+
+  // AI 重试按钮
+  document.getElementById('aiRetrySection').style.display =
+    (item.ai_status !== 'done') ? 'block' : 'none';
+
+  document.getElementById('modalOverlay').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('modalOverlay')) return;
+  document.getElementById('modalOverlay').classList.remove('show');
+  document.body.style.overflow = '';
+  loadItems(); // 刷新列表
+}
+
+async function setStatus(status) {
+  if (!currentItemId) return;
+  await fetch(`/api/items/${currentItemId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status })
+  });
+
+  document.querySelectorAll('.status-option').forEach(btn => {
+    btn.className = 'status-option';
+    if (btn.dataset.status === status) {
+      btn.classList.add('active-' + status);
+    }
+  });
+  loadStats();
+}
+
+async function saveNote() {
+  if (!currentItemId) return;
+  const note = document.getElementById('noteInput').value;
+  await fetch(`/api/items/${currentItemId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note })
+  });
+}
+
+async function deleteItem() {
+  if (!currentItemId) return;
+  if (!confirm('确定删除这个种草吗？')) return;
+  await fetch(`/api/items/${currentItemId}`, { method: 'DELETE' });
+  closeModal();
+  await loadCategories();
+  await loadItems();
+  await loadStats();
+}
+
+async function retryAI() {
+  if (!currentItemId) return;
+  const btn = document.querySelector('.retry-btn');
+  btn.textContent = '识别中...';
+  btn.disabled = true;
+
+  const res = await fetch(`/api/retry-ai/${currentItemId}`, { method: 'POST' });
+  const data = await res.json();
+
+  if (data.ai) {
+    btn.textContent = '识别成功！';
+    setTimeout(() => {
+      closeModal();
+      loadItems();
+      loadCategories();
+    }, 500);
+  } else {
+    btn.textContent = '识别失败，请检查 API Key';
+    setTimeout(() => {
+      btn.textContent = '重新 AI 识别';
+      btn.disabled = false;
+    }, 2000);
+  }
+}
+
+// ========== 设置 ==========
+async function checkApiKey() {
+  const res = await fetch('/api/config');
+  const data = await res.json();
+  if (data.base_url) {
+    document.getElementById('baseUrlInput').value = data.base_url;
+  }
+  if (!data.has_api_key) {
+    document.getElementById('apiKeyHint').innerHTML =
+      '<strong style="color:var(--accent2)">未配置 API Key</strong><br>' +
+      '设置后上传图片会自动 AI 识别内容并打标签。<br>' +
+      '没有 Key 也能用，手动管理标签和分类。';
+  }
+}
+
+function showSettings() {
+  document.getElementById('settingsModal').classList.add('show');
+}
+
+function closeSettings(e) {
+  if (e && e.target !== document.getElementById('settingsModal')) return;
+  document.getElementById('settingsModal').classList.remove('show');
+}
+
+async function saveApiConfig() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  const baseUrl = document.getElementById('baseUrlInput').value.trim();
+
+  // 保存 base_url
+  await fetch('/api/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: 'openai_base_url', value: baseUrl })
+  });
+
+  // 保存 api_key（只在有输入时更新）
+  if (key) {
+    await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'openai_api_key', value: key })
+    });
+  }
+
+  document.getElementById('apiKeyInput').value = '';
+  const msgs = [];
+  if (baseUrl) msgs.push('API 地址已保存');
+  if (key) msgs.push('API Key 已保存');
+  document.getElementById('apiKeyHint').innerHTML = msgs.length
+    ? `<span style="color:var(--bought)">${msgs.join('，')}！</span> 上传图片将自动 AI 识别。`
+    : '设置已更新。';
+  setTimeout(() => closeSettings({ target: document.getElementById('settingsModal') }), 1500);
+}
+
+// Service Worker 注册
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+}
+
+// 启动
+init();
+</script>
+</body>
+</html>
