@@ -608,70 +608,6 @@ let currentItemId = null;
 let allItems = [];
 let searchTimer = null;
 
-// AI 分类配置（前端直接调 DashScope，绕过美国服务器）
-const AI_CONFIG = {
-  apiKey: 'sk-1a64dd3bb4d442d4a57927a1c296c2a8',
-  baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-  model: 'qwen-vl-plus-latest',
-  categories: ['穿搭', '美甲', '美妆', '食品', '家居', '数码', '其他']
-};
-
-async function frontendClassify(itemId) {
-  try {
-    // 获取图片数据
-    const item = allItems.find(i => i.id === itemId);
-    if (!item) return;
-    const imgUrl = '/uploads/' + item.image_path;
-    const resp = await fetch(imgUrl);
-    const blob = await resp.blob();
-    const base64 = await new Promise(resolve => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result.split(',')[1]);
-      reader.readAsDataURL(blob);
-    });
-    const mime = blob.type || 'image/jpeg';
-
-    // 调 DashScope API
-    const aiResp = await fetch(AI_CONFIG.baseUrl + '/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + AI_CONFIG.apiKey
-      },
-      body: JSON.stringify({
-        model: AI_CONFIG.model,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'text', text: '请判断图片分类，只回复一个分类词。\n分类表：\n穿搭：衣服、裤子、裙子、鞋子、包包、帽子、围巾、配饰、首饰、手表、穿搭搭配图\n美甲：指甲、美甲款式、美甲图片\n美妆：口红、眼影、粉底、护肤品、香水、化妆品、妆容图\n食品：零食、饮料、蛋糕、餐厅、美食图片\n家居：家具、装修、收纳、灯具、床品、家居用品\n数码：手机、电脑、耳机、相机、电子产品\n\n只回复分类词，不要解释。' },
-            { type: 'image_url', image_url: { url: 'data:' + mime + ';base64,' + base64, detail: 'low' } }
-          ]
-        }],
-        max_tokens: 10
-      })
-    });
-    const aiData = await aiResp.json();
-    const text = aiData.choices?.[0]?.message?.content?.trim() || '';
-    let category = '其他';
-    for (const cat of AI_CONFIG.categories) {
-      if (text.includes(cat)) { category = cat; break; }
-    }
-
-    // 写回服务器
-    await fetch('/api/items/' + itemId, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ category: category, ai_status: 'done' })
-    });
-
-    // 刷新
-    await loadItems();
-    await loadCategories();
-    await loadStats();
-  } catch (e) {
-    console.log('前端 AI 分类失败:', e);
-  }
-}
 
 // ========== 初始化 ==========
 async function init() {
@@ -884,10 +820,18 @@ async function uploadFiles(files) {
     await loadItems();
     await loadStats();
 
-    // 前端直接调 AI 分类（绕过美国服务器网络问题）
-    const newItems = data.results.filter(r => r.status === 'ok');
-    for (const item of newItems) {
-      frontendClassify(item.id); // 异步执行，不阻塞
+    // 轮询等待 AI 分类完成（后台线程处理）
+    if (saved > 0) {
+      let polls = 0;
+      const pollTimer = setInterval(async () => {
+        polls++;
+        await loadItems();
+        await loadCategories();
+        await loadStats();
+        // 检查是否全部分类完成
+        const pending = allItems.filter(i => i.ai_status === 'pending').length;
+        if (pending === 0 || polls >= 24) clearInterval(pollTimer); // 最多 2 分钟
+      }, 5000);
     }
   } catch (e) {
     msg.textContent = '上传失败，请重试';

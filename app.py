@@ -69,14 +69,14 @@ def get_api_config():
 CATEGORIES = ['穿搭', '美甲', '美妆', '食品', '家居', '数码', '其他']
 
 def ai_classify(image_path):
-    """轻量 AI 分类：只返回一个分类词"""
+    """轻量 AI 分类：只返回一个分类词，带重试"""
     api_key, base_url = get_api_config()
     if not api_key:
         return '其他'
 
     try:
         import openai
-        client = openai.OpenAI(api_key=api_key, base_url=base_url)
+        client = openai.OpenAI(api_key=api_key, base_url=base_url, timeout=60.0)
 
         with open(image_path, 'rb') as f:
             img_data = base64.b64encode(f.read()).decode('utf-8')
@@ -85,12 +85,8 @@ def ai_classify(image_path):
         mime = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
                 'gif': 'image/gif', 'webp': 'image/webp'}.get(ext.lstrip('.'), 'image/jpeg')
 
-        response = client.chat.completions.create(
-            model="qwen-vl-plus-latest",
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": """请判断图片分类，只回复一个分类词。
+        prompt = """请判断图片中的商品属于哪个分类，只回复一个分类词。
+注意：图片可能是商品截图、订单截图、直播截图、购物车截图等，请识别其中的商品类型。
 
 分类表：
 穿搭：衣服、裤子、裙子、鞋子、包包、帽子、围巾、配饰、首饰、手表、穿搭搭配图
@@ -100,24 +96,40 @@ def ai_classify(image_path):
 家居：家具、装修、收纳、灯具、床品、家居用品
 数码：手机、电脑、耳机、相机、电子产品
 
-只回复分类词，不要解释。"""},
-                    {"type": "image_url", "image_url": {
-                        "url": f"data:{mime};base64,{img_data}",
-                        "detail": "low"
-                    }}
-                ]
-            }],
-            max_tokens=10
-        )
+只回复分类词，不要解释。"""
 
-        text = response.choices[0].message.content.strip()
-        # 匹配到已知分类
-        for cat in CATEGORIES:
-            if cat in text:
-                return cat
-        return '其他'
+        # 最多重试 2 次
+        for attempt in range(2):
+            try:
+                response = client.chat.completions.create(
+                    model="qwen-vl-plus-latest",
+                    messages=[{
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {"type": "image_url", "image_url": {
+                                "url": f"data:{mime};base64,{img_data}"
+                            }}
+                        ]
+                    }],
+                    max_tokens=10
+                )
+                text = response.choices[0].message.content.strip()
+                for cat in CATEGORIES:
+                    if cat in text:
+                        return cat
+                if attempt == 0:
+                    continue  # 没匹配到，再试一次
+                return '其他'
+            except Exception as e:
+                print(f"AI 分类第{attempt+1}次失败: {e}")
+                if attempt == 0:
+                    import time
+                    time.sleep(2)
+                    continue
+                return '其他'
     except Exception as e:
-        print(f"AI 分类失败: {e}")
+        print(f"AI 分类初始化失败: {e}")
         return '其他'
 
 # ============ 路由 ============
@@ -157,7 +169,9 @@ def quick_upload():
         db.commit()
         item_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
 
-        return '已保存！'
+        # 后台线程 AI 分类
+        threading.Thread(target=bg_ai_classify, args=(item_id, filepath), daemon=True).start()
+        return '已保存！AI 正在识别中~'
 
 @app.route('/')
 def index():
@@ -237,6 +251,9 @@ def upload():
         db.commit()
         item_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
         results.append({'id': item_id, 'status': 'ok', 'ai': False})
+
+        # 后台线程 AI 分类
+        threading.Thread(target=bg_ai_classify, args=(item_id, filepath), daemon=True).start()
 
     return jsonify({'results': results})
 
