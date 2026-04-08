@@ -573,11 +573,11 @@ body {
       <div class="modal-section search-links" id="searchLinks">
         <div class="modal-label">找同款</div>
         <div class="search-btns">
-          <a class="search-btn taobao" id="searchTaobao" target="_blank">淘宝搜</a>
+          <a class="search-btn taobao" id="searchTaobao" onclick="openTaobaoSearch(event)">拍照搜同款</a>
           <a class="search-btn jd" id="searchJD" target="_blank">京东搜</a>
           <a class="search-btn xhs" id="searchXHS" target="_blank">小红书</a>
         </div>
-        <div class="search-tip">💡 长按上方图片保存，打开淘宝首页用「拍照搜」更精准</div>
+        <div class="search-tip">💡 点击「拍照搜同款」会尝试打开淘宝 App 拍照搜索；如未安装可长按图片保存后手动搜</div>
       </div>
 
       <button class="delete-btn" onclick="deleteItem()">删除</button>
@@ -877,12 +877,36 @@ function openDetail(item) {
 
   // 找同款搜索链接
   const q = encodeURIComponent(item.category || '种草');
-  document.getElementById('searchTaobao').href = `https://s.taobao.com/search?q=${q}`;
+  document.getElementById('searchTaobao').dataset.imageUrl = `/uploads/${item.image_path}`;
+  document.getElementById('searchTaobao').dataset.fallbackUrl = `https://s.taobao.com/search?q=${q}`;
   document.getElementById('searchJD').href = `https://search.jd.com/Search?keyword=${q}`;
   document.getElementById('searchXHS').href = `https://www.xiaohongshu.com/search_result?keyword=${q}`;
 
   document.getElementById('modalOverlay').classList.add('show');
   document.body.style.overflow = 'hidden';
+}
+
+function openTaobaoSearch(e) {
+  e.preventDefault();
+  const btn = e.currentTarget;
+  // 尝试唤起淘宝 App 拍照搜同款
+  const taobaoScheme = 'taobao://com.taobao.search/imagesearch';
+  const fallbackUrl = btn.dataset.fallbackUrl;
+
+  // 移动端尝试唤起 App，超时后回退网页
+  const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
+  if (isMobile) {
+    const start = Date.now();
+    window.location.href = taobaoScheme;
+    // 如果 2 秒内没有跳走（App 未安装），打开网页版
+    setTimeout(() => {
+      if (Date.now() - start < 2500) {
+        window.open(fallbackUrl, '_blank');
+      }
+    }, 2000);
+  } else {
+    window.open(fallbackUrl, '_blank');
+  }
 }
 
 function closeModal(e) {

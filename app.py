@@ -90,14 +90,24 @@ def ai_classify(image_path):
             messages=[{
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": "判断图片中物品的分类，只回复一个词。分类规则：衣服鞋包配饰→穿搭，指甲美甲款式→美甲，化妆品护肤品口红→美妆，吃的喝的零食→食品，家具装修收纳→家居，手机电脑耳机→数码，其他→其他"},
+                    {"type": "text", "text": """请判断图片分类，只回复一个分类词。
+
+分类表：
+穿搭：衣服、裤子、裙子、鞋子、包包、帽子、围巾、配饰、首饰、手表、穿搭搭配图
+美甲：指甲、美甲款式、美甲图片
+美妆：口红、眼影、粉底、护肤品、香水、化妆品、妆容图
+食品：零食、饮料、蛋糕、餐厅、美食图片
+家居：家具、装修、收纳、灯具、床品、家居用品
+数码：手机、电脑、耳机、相机、电子产品
+
+只回复分类词，不要解释。"""},
                     {"type": "image_url", "image_url": {
                         "url": f"data:{mime};base64,{img_data}",
                         "detail": "low"
                     }}
                 ]
             }],
-            max_tokens=5
+            max_tokens=10
         )
 
         text = response.choices[0].message.content.strip()
