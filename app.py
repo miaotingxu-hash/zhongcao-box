@@ -66,18 +66,17 @@ def get_api_config():
     base_url = (url_row['value'] if url_row else '') or os.environ.get('OPENAI_BASE_URL', '') or 'https://dashscope.aliyuncs.com/compatible-mode/v1'
     return api_key, base_url
 
-def ai_is_zhongcao(image_path):
-    """判断图片是否是种草内容（返回 True/False + 识别结果）"""
+CATEGORIES = ['穿搭', '美甲', '美妆', '食品', '家居', '数码', '其他']
+
+def ai_classify(image_path):
+    """轻量 AI 分类：只返回一个分类词"""
     api_key, base_url = get_api_config()
     if not api_key:
-        return True, None  # 没有 API Key 时默认保留
+        return '其他'
 
     try:
         import openai
-        client_kwargs = {'api_key': api_key}
-        if base_url:
-            client_kwargs['base_url'] = base_url
-        client = openai.OpenAI(**client_kwargs)
+        client = openai.OpenAI(api_key=api_key, base_url=base_url)
 
         with open(image_path, 'rb') as f:
             img_data = base64.b64encode(f.read()).decode('utf-8')
@@ -91,97 +90,25 @@ def ai_is_zhongcao(image_path):
             messages=[{
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": """判断这张图片是否是"种草"内容（想买的商品、美甲参考、穿搭灵感、美妆推荐、家居好物等）。
-
-如果不是种草（比如聊天记录、付款截图、工作截图、纯文字、二维码、通知截图等），返回：
-{"is_zhongcao": false}
-
-如果是种草，返回完整识别结果：
-{"is_zhongcao": true, "category": "品类", "tags": ["标签1","标签2"], "brand": "品牌名或null", "color": "主要颜色", "style": "风格描述", "description": "一句话描述", "search_keywords": ["关键词1","关键词2"]}
-
-返回纯JSON，不要markdown格式。"""},
+                    {"type": "text", "text": "这张图片属于哪个分类？只回复一个词：穿搭/美甲/美妆/食品/家居/数码/其他"},
                     {"type": "image_url", "image_url": {
                         "url": f"data:{mime};base64,{img_data}",
                         "detail": "low"
                     }}
                 ]
             }],
-            max_tokens=500
+            max_tokens=5
         )
 
         text = response.choices[0].message.content.strip()
-        if text.startswith('```'):
-            text = text.split('\n', 1)[1] if '\n' in text else text[3:]
-            if text.endswith('```'):
-                text = text[:-3]
-            text = text.strip()
-
-        result = json.loads(text)
-        is_zc = result.get('is_zhongcao', True)
-        return is_zc, result if is_zc else None
+        # 匹配到已知分类
+        for cat in CATEGORIES:
+            if cat in text:
+                return cat
+        return '其他'
     except Exception as e:
-        print(f"AI 筛选失败: {e}")
-        return True, None  # 出错时默认保留
-
-def ai_recognize(image_path):
-    """调用 GPT-4o Vision 识别图片内容"""
-    api_key, base_url = get_api_config()
-    if not api_key:
-        return None
-
-    try:
-        import openai
-        client_kwargs = {'api_key': api_key}
-        if base_url:
-            client_kwargs['base_url'] = base_url
-        client = openai.OpenAI(**client_kwargs)
-
-        # 读取图片并转 base64
-        with open(image_path, 'rb') as f:
-            img_data = base64.b64encode(f.read()).decode('utf-8')
-
-        # 判断图片类型
-        ext = os.path.splitext(image_path)[1].lower()
-        mime = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
-                'gif': 'image/gif', 'webp': 'image/webp'}.get(ext.lstrip('.'), 'image/jpeg')
-
-        response = client.chat.completions.create(
-            model="qwen-vl-plus-latest",
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": """你是一个种草图片识别助手。分析这张图片，返回纯JSON（中文），不要包含markdown格式：
-{
-  "category": "品类（美妆、穿搭、美甲、家居、美食、数码、其他）",
-  "tags": ["标签1", "标签2"],
-  "brand": "品牌名或null",
-  "color": "主要颜色",
-  "style": "风格描述",
-  "description": "一句话描述种草内容",
-  "search_keywords": ["关键词1", "关键词2"]
-}"""},
-                    {"type": "image_url", "image_url": {
-                        "url": f"data:{mime};base64,{img_data}",
-                        "detail": "low"
-                    }}
-                ]
-            }],
-            max_tokens=500
-        )
-
-        text = response.choices[0].message.content.strip()
-        # 清理可能的 markdown 包裹
-        if text.startswith('```'):
-            text = text.split('\n', 1)[1] if '\n' in text else text[3:]
-            if text.endswith('```'):
-                text = text[:-3]
-            text = text.strip()
-
-        result = json.loads(text)
-        return result
-    except Exception as e:
-        print(f"AI 识别失败: {e}")
-        return None
+        print(f"AI 分类失败: {e}")
+        return '其他'
 
 # ============ 路由 ============
 
@@ -221,7 +148,7 @@ def quick_upload():
         item_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
 
         # AI 识别放到后台
-        threading.Thread(target=bg_ai_recognize, args=(item_id, filepath), daemon=True).start()
+        threading.Thread(target=bg_ai_classify, args=(item_id, filepath), daemon=True).start()
         return '已保存！AI 正在识别中~'
 
 @app.route('/')
@@ -232,26 +159,17 @@ def index():
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-def bg_ai_recognize(item_id, filepath):
-    """后台线程执行 AI 识别"""
+def bg_ai_classify(item_id, filepath):
+    """后台线程执行 AI 分类"""
     try:
-        ai_result = ai_recognize(filepath)
-        if ai_result:
-            db = sqlite3.connect(app.config['DATABASE'])
-            db.row_factory = sqlite3.Row
-            tags = ','.join(ai_result.get('tags', []))
-            keywords = ','.join(ai_result.get('search_keywords', []))
-            brand = ai_result.get('brand') or ''
-            if brand and brand != 'null':
-                keywords = f"{brand},{keywords}" if keywords else brand
-            db.execute('''UPDATE items SET tags=?, ai_description=?, keywords=?,
-                         category=?, ai_status='done' WHERE id=?''',
-                       (tags, ai_result.get('description', ''), keywords,
-                        ai_result.get('category', '其他'), item_id))
-            db.commit()
-            db.close()
+        category = ai_classify(filepath)
+        db = sqlite3.connect(app.config['DATABASE'])
+        db.execute('UPDATE items SET category=?, ai_status=? WHERE id=?',
+                   (category, 'done', item_id))
+        db.commit()
+        db.close()
     except Exception as e:
-        print(f"后台 AI 识别失败: {e}")
+        print(f"后台 AI 分类失败: {e}")
 
 @app.route('/api/upload', methods=['POST'])
 def upload():
@@ -294,7 +212,7 @@ def upload():
         results.append({'id': item_id, 'status': 'ok', 'ai': False})
 
         # AI 识别放到后台线程
-        threading.Thread(target=bg_ai_recognize, args=(item_id, filepath), daemon=True).start()
+        threading.Thread(target=bg_ai_classify, args=(item_id, filepath), daemon=True).start()
 
     return jsonify({'results': results})
 
@@ -422,21 +340,11 @@ def retry_ai(item_id):
         return jsonify({'error': '图片不存在'}), 404
 
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], row['image_path'])
-    ai_result = ai_recognize(filepath)
-    if ai_result:
-        tags = ','.join(ai_result.get('tags', []))
-        keywords = ','.join(ai_result.get('search_keywords', []))
-        brand = ai_result.get('brand') or ''
-        if brand and brand != 'null':
-            keywords = f"{brand},{keywords}" if keywords else brand
-        db.execute('''UPDATE items SET tags=?, ai_description=?, keywords=?,
-                     category=?, ai_status='done' WHERE id=?''',
-                   (tags, ai_result.get('description', ''), keywords,
-                    ai_result.get('category', '其他'), item_id))
-        db.commit()
-        return jsonify({'ok': True, 'ai': True})
-    else:
-        return jsonify({'ok': False, 'ai': False, 'error': '识别失败，请检查 API Key'})
+    category = ai_classify(filepath)
+    db.execute('UPDATE items SET category=?, ai_status=? WHERE id=?',
+               (category, 'done', item_id))
+    db.commit()
+    return jsonify({'ok': True, 'category': category})
 
 @app.route('/api/scan-folder', methods=['POST'])
 def scan_folder():
@@ -477,18 +385,10 @@ def scan_folder():
         db.commit()
         item_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
 
-        ai_result = ai_recognize(dest_path)
-        if ai_result:
-            tags = ','.join(ai_result.get('tags', []))
-            keywords = ','.join(ai_result.get('search_keywords', []))
-            brand = ai_result.get('brand') or ''
-            if brand and brand != 'null':
-                keywords = f"{brand},{keywords}" if keywords else brand
-            db.execute('''UPDATE items SET tags=?, ai_description=?, keywords=?,
-                         category=?, ai_status='done' WHERE id=?''',
-                       (tags, ai_result.get('description', ''), keywords,
-                        ai_result.get('category', '其他'), item_id))
-            db.commit()
+        category = ai_classify(dest_path)
+        db.execute('UPDATE items SET category=?, ai_status=? WHERE id=?',
+                   (category, 'done', item_id))
+        db.commit()
 
         imported += 1
 

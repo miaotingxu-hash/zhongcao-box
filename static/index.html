@@ -369,6 +369,14 @@ body {
 .note-input:focus { border-color: var(--accent); }
 
 /* 删除按钮 */
+.search-btns { display: flex; gap: 8px; }
+.search-btn {
+  flex: 1; text-align: center; padding: 10px; border-radius: 10px;
+  text-decoration: none; font-size: 13px; font-weight: 500;
+}
+.search-btn.taobao { background: #FFF2E8; color: #FF6A00; }
+.search-btn.jd { background: #FFF0F0; color: #E4393C; }
+.search-btn.xhs { background: #FFF0F3; color: #FE2C55; }
 .delete-btn {
   width: 100%;
   padding: 12px;
@@ -561,8 +569,13 @@ body {
                   onblur="saveNote()"></textarea>
       </div>
 
-      <div class="modal-section" id="aiRetrySection" style="display:none">
-        <button class="retry-btn" onclick="retryAI()">重新 AI 识别</button>
+      <div class="modal-section search-links" id="searchLinks">
+        <div class="modal-label">找同款</div>
+        <div class="search-btns">
+          <a class="search-btn taobao" id="searchTaobao" target="_blank">淘宝</a>
+          <a class="search-btn jd" id="searchJD" target="_blank">京东</a>
+          <a class="search-btn xhs" id="searchXHS" target="_blank">小红书</a>
+        </div>
       </div>
 
       <button class="delete-btn" onclick="deleteItem()">删除</button>
@@ -860,9 +873,11 @@ function openDetail(item) {
     }
   });
 
-  // AI 重试按钮
-  document.getElementById('aiRetrySection').style.display =
-    (item.ai_status !== 'done') ? 'block' : 'none';
+  // 找同款搜索链接
+  const q = encodeURIComponent(item.category || '种草');
+  document.getElementById('searchTaobao').href = `https://s.taobao.com/search?q=${q}`;
+  document.getElementById('searchJD').href = `https://search.jd.com/Search?keyword=${q}`;
+  document.getElementById('searchXHS').href = `https://www.xiaohongshu.com/search_result?keyword=${q}`;
 
   document.getElementById('modalOverlay').classList.add('show');
   document.body.style.overflow = 'hidden';
