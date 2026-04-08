@@ -182,8 +182,8 @@ def thumbnail(filename):
         try:
             from PIL import Image
             img = Image.open(src)
-            img.thumbnail((400, 400))
-            img.save(thumb_path, 'JPEG', quality=60)
+            img.thumbnail((800, 800))
+            img.save(thumb_path, 'JPEG', quality=85)
         except Exception:
             return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
     return send_from_directory(thumb_dir, filename)
@@ -424,6 +424,12 @@ def scan_folder():
     return jsonify({'imported': imported, 'skipped': skipped})
 
 init_db()
+
+# 启动时清理旧缩略图缓存（参数调整后需要重新生成）
+import shutil
+thumb_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'thumbs')
+if os.path.exists(thumb_dir):
+    shutil.rmtree(thumb_dir)
 
 # 防止 Render 免费套餐休眠：每 10 分钟 ping 自己
 def keep_alive():
