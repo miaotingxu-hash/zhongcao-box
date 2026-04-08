@@ -157,9 +157,7 @@ def quick_upload():
         db.commit()
         item_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
 
-        # AI 识别放到后台
-        threading.Thread(target=bg_ai_classify, args=(item_id, filepath), daemon=True).start()
-        return '已保存！AI 正在识别中~'
+        return '已保存！'
 
 @app.route('/')
 def index():
@@ -240,9 +238,6 @@ def upload():
         item_id = db.execute('SELECT last_insert_rowid()').fetchone()[0]
         results.append({'id': item_id, 'status': 'ok', 'ai': False})
 
-        # AI 识别放到后台线程
-        threading.Thread(target=bg_ai_classify, args=(item_id, filepath), daemon=True).start()
-
     return jsonify({'results': results})
 
 @app.route('/api/items')
@@ -298,7 +293,7 @@ def update_item(item_id):
 
     updates = []
     params = []
-    for field in ['status', 'tags', 'category', 'note']:
+    for field in ['status', 'tags', 'category', 'note', 'ai_status']:
         if field in data:
             updates.append(f'{field} = ?')
             params.append(data[field])
