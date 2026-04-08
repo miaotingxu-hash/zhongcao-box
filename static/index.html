@@ -842,7 +842,7 @@ async function uploadFiles(files) {
 // ========== 详情 ==========
 function openDetail(item) {
   currentItemId = item.id;
-  document.getElementById('modalImg').src = '/uploads/' + item.image_path;
+  document.getElementById('modalImg').src = '/thumb/' + item.image_path;
   document.getElementById('modalDesc').textContent = item.ai_description || '暂无 AI 描述';
   document.getElementById('noteInput').value = item.note || '';
 
@@ -889,24 +889,9 @@ function openDetail(item) {
 function openTaobaoSearch(e) {
   e.preventDefault();
   const btn = e.currentTarget;
-  // 尝试唤起淘宝 App 拍照搜同款
-  const taobaoScheme = 'taobao://com.taobao.search/imagesearch';
   const fallbackUrl = btn.dataset.fallbackUrl;
-
-  // 移动端尝试唤起 App，超时后回退网页
-  const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
-  if (isMobile) {
-    const start = Date.now();
-    window.location.href = taobaoScheme;
-    // 如果 2 秒内没有跳走（App 未安装），打开网页版
-    setTimeout(() => {
-      if (Date.now() - start < 2500) {
-        window.open(fallbackUrl, '_blank');
-      }
-    }, 2000);
-  } else {
-    window.open(fallbackUrl, '_blank');
-  }
+  // 直接跳淘宝移动版搜索，iOS/Android 装了淘宝 App 会自动唤起
+  window.open(fallbackUrl.replace('s.taobao.com', 's.m.taobao.com'), '_blank');
 }
 
 function closeModal(e) {
