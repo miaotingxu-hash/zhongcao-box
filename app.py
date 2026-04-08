@@ -90,7 +90,7 @@ def ai_classify(image_path):
             messages=[{
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": "这张图片属于哪个分类？只回复一个词：穿搭/美甲/美妆/食品/家居/数码/其他"},
+                    {"type": "text", "text": "判断图片中物品的分类，只回复一个词。分类规则：衣服鞋包配饰→穿搭，指甲美甲款式→美甲，化妆品护肤品口红→美妆，吃的喝的零食→食品，家具装修收纳→家居，手机电脑耳机→数码，其他→其他"},
                     {"type": "image_url", "image_url": {
                         "url": f"data:{mime};base64,{img_data}",
                         "detail": "low"
@@ -158,6 +158,25 @@ def index():
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.route('/thumb/<path:filename>')
+def thumbnail(filename):
+    """返回缩略图，列表页加载更快"""
+    thumb_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'thumbs')
+    thumb_path = os.path.join(thumb_dir, filename)
+    if not os.path.exists(thumb_path):
+        os.makedirs(thumb_dir, exist_ok=True)
+        src = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        if not os.path.exists(src):
+            return '', 404
+        try:
+            from PIL import Image
+            img = Image.open(src)
+            img.thumbnail((400, 400))
+            img.save(thumb_path, 'JPEG', quality=60)
+        except Exception:
+            return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    return send_from_directory(thumb_dir, filename)
 
 def bg_ai_classify(item_id, filepath):
     """后台线程执行 AI 分类"""
