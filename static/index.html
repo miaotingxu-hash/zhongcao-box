@@ -573,7 +573,7 @@ body {
       <div class="modal-section search-links" id="searchLinks">
         <div class="modal-label">找同款</div>
         <div class="search-btns">
-          <a class="search-btn taobao" id="searchTaobao" onclick="openTaobaoSearch(event)">拍照搜同款</a>
+          <a class="search-btn taobao" id="searchTaobao" target="_blank">淘宝搜</a>
           <a class="search-btn jd" id="searchJD" target="_blank">京东搜</a>
           <a class="search-btn xhs" id="searchXHS" target="_blank">小红书</a>
         </div>
@@ -880,7 +880,7 @@ function openDetail(item) {
 
   // 找同款搜索链接
   const q = encodeURIComponent(item.category || '种草');
-  document.getElementById('searchTaobao').dataset.category = item.category || '种草';
+  document.getElementById('searchTaobao').href = `https://s.taobao.com/search?q=${q}`;
   document.getElementById('searchJD').href = `https://search.jd.com/Search?keyword=${q}`;
   document.getElementById('searchXHS').href = `https://www.xiaohongshu.com/search_result?keyword=${q}`;
 
@@ -888,19 +888,6 @@ function openDetail(item) {
   document.body.style.overflow = 'hidden';
 }
 
-function openTaobaoSearch(e) {
-  e.preventDefault();
-  const btn = e.currentTarget;
-  const category = btn.dataset.category || '种草';
-  const q = encodeURIComponent(category);
-  const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
-  if (isMobile) {
-    // 手机端：多种淘宝链接格式兜底
-    window.location.href = `https://s.m.taobao.com/h5?q=${q}`;
-  } else {
-    window.open(`https://s.taobao.com/search?q=${q}`, '_blank');
-  }
-}
 
 function closeModal(e) {
   if (e && e.target !== document.getElementById('modalOverlay')) return;
