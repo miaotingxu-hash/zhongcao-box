@@ -332,6 +332,27 @@ body {
 .modal-label { font-size: 12px; color: var(--text2); margin-bottom: 6px; }
 
 /* 状态切换 */
+.category-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cat-option {
+  padding: 6px 12px;
+  border-radius: 16px;
+  border: 1.5px solid #E8E4DE;
+  background: transparent;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.cat-option.active {
+  border-color: var(--accent);
+  background: rgba(200,167,139,0.15);
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .status-toggle {
   display: flex;
   gap: 8px;
@@ -554,6 +575,19 @@ body {
       <div class="modal-ai-desc" id="modalDesc"></div>
 
       <div class="modal-tags" id="modalTags"></div>
+
+      <div class="modal-section">
+        <div class="modal-label">分类</div>
+        <div class="category-toggle" id="categoryToggle">
+          <button class="cat-option" onclick="setCategory('穿搭')">穿搭</button>
+          <button class="cat-option" onclick="setCategory('美甲')">美甲</button>
+          <button class="cat-option" onclick="setCategory('美妆')">美妆</button>
+          <button class="cat-option" onclick="setCategory('食品')">食品</button>
+          <button class="cat-option" onclick="setCategory('家居')">家居</button>
+          <button class="cat-option" onclick="setCategory('数码')">数码</button>
+          <button class="cat-option" onclick="setCategory('其他')">其他</button>
+        </div>
+      </div>
 
       <div class="modal-section">
         <div class="modal-label">状态</div>
@@ -878,11 +912,13 @@ function openDetail(item) {
     }
   });
 
+  // 分类高亮
+  document.querySelectorAll('.cat-option').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent === item.category);
+  });
+
   // 找同款搜索链接
-  const q = encodeURIComponent(item.category || '种草');
-  document.getElementById('searchTaobao').href = `https://s.taobao.com/search?q=${q}`;
-  document.getElementById('searchJD').href = `https://search.jd.com/Search?keyword=${q}`;
-  document.getElementById('searchXHS').href = `https://www.xiaohongshu.com/search_result?keyword=${q}`;
+  updateSearchLinks(item.category || '其他');
 
   document.getElementById('modalOverlay').classList.add('show');
   document.body.style.overflow = 'hidden';
@@ -894,6 +930,41 @@ function closeModal(e) {
   document.getElementById('modalOverlay').classList.remove('show');
   document.body.style.overflow = '';
   loadItems(); // 刷新列表
+}
+
+async function setCategory(cat) {
+  if (!currentItemId) return;
+  await fetch(`/api/items/${currentItemId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ category: cat, ai_status: 'done' })
+  });
+
+  // 高亮选中
+  document.querySelectorAll('.cat-option').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent === cat);
+  });
+
+  // 更新搜索链接
+  updateSearchLinks(cat);
+
+  loadItems();
+  loadCategories();
+}
+
+function updateSearchLinks(cat) {
+  const q = encodeURIComponent(cat);
+  const linksEl = document.getElementById('searchLinks');
+  if (cat === '其他') {
+    linksEl.querySelector('.search-tip').textContent = '💡 请先选择分类，再搜同款';
+    linksEl.querySelectorAll('.search-btn').forEach(b => b.style.opacity = '0.4');
+  } else {
+    linksEl.querySelector('.search-tip').textContent = '💡 长按图片保存，打开淘宝用「拍照搜」更精准';
+    linksEl.querySelectorAll('.search-btn').forEach(b => b.style.opacity = '1');
+    document.getElementById('searchTaobao').href = `https://s.taobao.com/search?q=${q}`;
+    document.getElementById('searchJD').href = `https://search.jd.com/Search?keyword=${q}`;
+    document.getElementById('searchXHS').href = `https://www.xiaohongshu.com/search_result?keyword=${q}`;
+  }
 }
 
 async function setStatus(status) {
